@@ -1,7 +1,12 @@
-
 import jax
 import jax.numpy as jnp
 import flax.linen as nn
+from typing import (Any, Callable, Tuple)
+
+PRNGKey = Any
+Shape = Tuple[int, ...]
+Dtype = Any
+Array = Any
 
 # input dims [N: number of batches, H, W, C]
 
@@ -20,41 +25,39 @@ def max_pool_block(input):
 class FinalBlock(nn.Module):
     use_padding: bool
     use_activation: bool
-    default_weight_init = nn.initializers.he_normal
+    default_weight_init: Callable[[PRNGKey, Shape,
+                                   Dtype], Array] = nn.initializers.he_normal()
 
     def setup(self):
-        # self.conv = nn.Conv(features=1, kernel_size=(
-        #     1, 1), kernel_init=self.default_weight_init)
-        self.conv = nn.Conv(features=1, kernel_size=(1, 1))
-        self.activation = nn.sigmoid if self.use_activation else lambda x: x
-        self.upscale = jax.image.resize if not self.use_padding else lambda x, shape, method: x
+        self.conv = nn.Conv(features=1, kernel_size=(
+            1, 1), kernel_init=self.default_weight_init)
+        # self.activation = nn.sigmoid if self.use_activation else lambda x: x
+        # self.upscale = jax.image.resize if not self.use_padding else lambda x, shape, method: x
 
     def __call__(self, input):
         input = self.conv(input)
-        input = self.activation(input)
-        return self.upscale(input, shape=(1, 512, 512, 1), method='bilinear')
+        return input
+        # input = self.activation(input)
+        # return self.upscale(input, shape=(1, 512, 512, 1), method='bilinear')
 
 
 class ContractingBlock(nn.Module):
     num_features: int
     use_padding: bool
-    default_weight_init = nn.initializers.he_normal
+    default_weight_init: Callable[[PRNGKey, Shape,
+                                   Dtype], Array] = nn.initializers.he_normal()
 
     def setup(self):
         if self.use_padding:
             self.conv_1 = nn.Conv(
-                # features=self.num_features, kernel_size=(3, 3), kernel_init=self.default_weight_init)
-                features=self.num_features, kernel_size=(3, 3))
+                features=self.num_features, kernel_size=(3, 3), kernel_init=self.default_weight_init)
             self.conv_2 = nn.Conv(
-                # features=self.num_features, kernel_size=(3, 3), kernel_init=self.default_weight_init)
-                features=self.num_features, kernel_size=(3, 3))
+                features=self.num_features, kernel_size=(3, 3), kernel_init=self.default_weight_init)
         else:
             self.conv_1 = nn.Conv(features=self.num_features,
-                                  #   kernel_size=(3, 3), padding='VALID', kernel_init=self.default_weight_init)
-                                  kernel_size=(3, 3), padding='VALID')
+                                  kernel_size=(3, 3), padding='VALID', kernel_init=self.default_weight_init)
             self.conv_2 = nn.Conv(features=self.num_features,
-                                  #   kernel_size=(3, 3), padding='VALID', kernel_init=self.default_weight_init)
-                                  kernel_size=(3, 3), padding='VALID')
+                                  kernel_size=(3, 3), padding='VALID', kernel_init=self.default_weight_init)
 
     @nn.compact
     def __call__(self, input):
@@ -67,27 +70,23 @@ class ContractingBlock(nn.Module):
 class ExpandingBlock(nn.Module):
     num_features: int
     use_padding: bool
-    default_weight_init = nn.initializers.he_normal
+    default_weight_init: Callable[[PRNGKey, Shape,
+                                   Dtype], Array] = nn.initializers.he_normal()
 
     def setup(self):
         self.conv_tranpose = nn.ConvTranspose(
-            # features=self.num_features, kernel_size=(2, 2), strides=(2, 2), kernel_init=self.default_weight_init)
-            features=self.num_features, kernel_size=(2, 2), strides=(2, 2))
+            features=self.num_features, kernel_size=(2, 2), strides=(2, 2), kernel_init=self.default_weight_init)
         if self.use_padding:
             self.conv_1 = nn.Conv(
-                # features=self.num_features, kernel_size=(3, 3), kernel_init=self.default_weight_init)
-                features=self.num_features, kernel_size=(3, 3))
+                features=self.num_features, kernel_size=(3, 3), kernel_init=self.default_weight_init)
             self.conv_2 = nn.Conv(
-                # features=self.num_features, kernel_size=(3, 3), kernel_init=self.default_weight_init)
-                features=self.num_features, kernel_size=(3, 3))
+                features=self.num_features, kernel_size=(3, 3), kernel_init=self.default_weight_init)
             self.crop = lambda x, y: x
         else:
             self.conv_1 = nn.Conv(features=self.num_features,
-                                  #   kernel_size=(3, 3), padding='VALID', kernel_init=self.default_weight_init)
-                                  kernel_size=(3, 3), padding='VALID')
+                                  kernel_size=(3, 3), padding='VALID', kernel_init=self.default_weight_init)
             self.conv_2 = nn.Conv(features=self.num_features,
-                                  #   kernel_size=(3, 3), padding='VALID', kernel_init=self.default_weight_init)
-                                  kernel_size=(3, 3), padding='VALID')
+                                  kernel_size=(3, 3), padding='VALID', kernel_init=self.default_weight_init)
             self.crop = center_crop_array
 
     @nn.compact
@@ -141,7 +140,7 @@ class UnetJAX(nn.Module):
     def init_params(self, rng):
         input_size_dummy = jnp.ones(
             (1, self.input_image_size, self.input_image_size, 1))
-        params = self.init(rng, input_size_dummy)
+        params = self.init(rng, input_size_dummy)['params']
         return params
 
 
@@ -152,11 +151,16 @@ if __name__ == "__main__":
     key = random.PRNGKey(0)
     unet_params = unet_padding.init_params(key)
     dummy_in = jnp.ones([1, 512, 512, 1])
-    dummy_out = unet_padding.apply(unet_params, dummy_in)
+    dummy_out = unet_padding.apply({'params': unet_params}, dummy_in)
     print("padding " + str(dummy_out.shape))
+    # print(dummy_out)
+    # print(unet_params['params']['contracting_block_1']
+    #       ['conv_1']['kernel'][0, 0, 0, 0])
+    # print(unet_params['contracting_block_1']
+    #       ['conv_1']['kernel'][0, 0, 0, 0])
     unet_resize = UnetJAX(input_image_size=512,
                           use_padding=False, use_activation=False)
     unet_params = unet_resize.init_params(key)
     dummy_in = jnp.ones([1, 512, 512, 1])
-    dummy_out = unet_resize.apply(unet_params, dummy_in)
+    dummy_out = unet_resize.apply({'params': unet_params}, dummy_in)
     print("resize " + str(dummy_out.shape))

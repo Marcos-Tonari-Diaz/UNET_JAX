@@ -1,6 +1,7 @@
 data
-*.code-workspace
-# Byte-compiled / optimized / DLL files
+unet_jax/logs
 __pycache__/
+*.code-workspace
 *.py[cod]
 *$py.class
+*.png

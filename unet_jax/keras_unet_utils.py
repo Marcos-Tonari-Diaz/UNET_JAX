@@ -167,8 +167,7 @@ def plot_imgs(
         pred_imgs=None,
         nm_img_to_plot=10,
         figsize=4,
-        alpha=0.5,
-        color="red"):
+        epoch=0):
     """
     Image plotting for semantic segmentation data.
     Last column is always an overlay of ground truth or prediction
@@ -180,68 +179,34 @@ def plot_imgs(
         pred_imgs (numpy.ndarray, optional): Array of arrays representing a collection of prediction masks images.. Defaults to None.
         nm_img_to_plot (int, optional): How many images to display. Takes first N images. Defaults to 10.
         figsize (int, optional): Matplotlib figsize. Defaults to 4.
-        alpha (float, optional): Transparency for mask overlay on original image. Defaults to 0.5.
-        color (str, optional): Color for mask overlay. Defaults to "red".
     """  # NOQA E501
-    assert(color in MASK_COLORS)
 
     if nm_img_to_plot > org_imgs.shape[0]:
         nm_img_to_plot = org_imgs.shape[0]
     im_id = 0
-    org_imgs_size = org_imgs.shape[1]
 
     org_imgs = reshape_arr(org_imgs)
     mask_imgs = reshape_arr(mask_imgs)
-    if not (pred_imgs is None):
-        cols = 4
-        pred_imgs = reshape_arr(pred_imgs)
-    else:
-        cols = 3
+    pred_imgs = reshape_arr(pred_imgs)
+    cols = 3
 
     fig, axes = plt.subplots(
         nm_img_to_plot, cols, figsize=(cols * figsize, nm_img_to_plot * figsize), squeeze=False
     )
     axes[0, 0].set_title("original", fontsize=15)
     axes[0, 1].set_title("ground truth", fontsize=15)
-    if not (pred_imgs is None):
-        axes[0, 2].set_title("prediction", fontsize=15)
-        axes[0, 3].set_title("overlay", fontsize=15)
-    else:
-        axes[0, 2].set_title("overlay", fontsize=15)
+    axes[0, 2].set_title("prediction", fontsize=15)
     for m in range(0, nm_img_to_plot):
         axes[m, 0].imshow(org_imgs[im_id], cmap=get_cmap(org_imgs))
         axes[m, 0].set_axis_off()
         axes[m, 1].imshow(mask_imgs[im_id], cmap=get_cmap(mask_imgs))
         axes[m, 1].set_axis_off()
-        if not (pred_imgs is None):
-            axes[m, 2].imshow(pred_imgs[im_id], cmap=get_cmap(pred_imgs))
-            axes[m, 2].set_axis_off()
-            axes[m, 3].imshow(org_imgs[im_id], cmap=get_cmap(org_imgs))
-            axes[m, 3].imshow(
-                mask_to_rgba(
-                    zero_pad_mask(pred_imgs[im_id],
-                                  desired_size=org_imgs_size),
-                    color=color,
-                ),
-                cmap=get_cmap(pred_imgs),
-                alpha=alpha,
-            )
-            axes[m, 3].set_axis_off()
-        else:
-            axes[m, 2].imshow(org_imgs[im_id], cmap=get_cmap(org_imgs))
-            axes[m, 2].imshow(
-                mask_to_rgba(
-                    zero_pad_mask(mask_imgs[im_id],
-                                  desired_size=org_imgs_size),
-                    color=color,
-                ),
-                cmap=get_cmap(mask_imgs),
-                alpha=alpha,
-            )
-            axes[m, 2].set_axis_off()
+        axes[m, 2].imshow(pred_imgs[im_id], cmap=get_cmap(pred_imgs))
+        axes[m, 2].set_axis_off()
         im_id += 1
 
-    plt.show()
+    plt.savefig("predictions_"+str(epoch)+".png", dpi=150)
+    # plt.show()
 
 
 def zero_pad_mask(mask, desired_size):

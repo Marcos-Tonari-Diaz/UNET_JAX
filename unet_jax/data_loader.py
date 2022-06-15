@@ -41,6 +41,7 @@ class UnetTrainDataGenerator:
             images,
             masks,
             seed=seed,
+            batch_size=1,
             data_gen_args=dict(
                 rotation_range=15.,
                 width_shift_range=0.05,
@@ -70,4 +71,4 @@ if __name__ == "__main__":
     unet_datagen = UnetTrainDataGenerator(
         dataset["train"]["images"], dataset["train"]["masks"], seed=1)
     batch = unet_datagen.get_batch_jax()
-    plot_imgs(batch["image"], batch["mask"], nm_img_to_plot=1)
+    print(batch["image"])
