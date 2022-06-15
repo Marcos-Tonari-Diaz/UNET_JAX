@@ -8,5 +8,5 @@ def jax_random_sum_vmap_factory():
 
 if __name__ == "__main__":
     prng_key = random.PRNGKey(4)
-    rand_vec_jax = random.normal(prng_key, (1, int(2e7)))
+    rand_vec_jax = random.normal(prng_key, (1, int(5e7)))
     perf_timer(jax_random_sum_vmap_factory())(rand_vec_jax)
