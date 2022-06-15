@@ -1,0 +1,4 @@
+gpu
+gpu
+device count4
+devices[GpuDevice(id=0, process_index=0), GpuDevice(id=1, process_index=0), GpuDevice(id=2, process_index=0), GpuDevice(id=3, process_index=0)]
