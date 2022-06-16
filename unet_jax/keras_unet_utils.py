@@ -1,10 +1,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from keras.preprocessing.image import ImageDataGenerator
+from datetime import datetime
+
 
 def get_date_string():
     current_date = datetime.now()
     return current_date.strftime('%d-%m-%Y_%Hh%Mm')
+
 
 MASK_COLORS = [
     "red", "green", "blue",
@@ -168,10 +171,11 @@ def mask_to_rgba(mask, color="red"):
 def plot_imgs(
         org_imgs,
         mask_imgs,
-        pred_imgs=None,
+        pred_logits,
+        pred_masks,
         nm_img_to_plot=10,
         figsize=4,
-        epoch=0):
+        save_path="prediction.png"):
     """
     Image plotting for semantic segmentation data.
     Last column is always an overlay of ground truth or prediction
@@ -191,25 +195,29 @@ def plot_imgs(
 
     org_imgs = reshape_arr(org_imgs)
     mask_imgs = reshape_arr(mask_imgs)
-    pred_imgs = reshape_arr(pred_imgs)
-    cols = 3
+    pred_masks = reshape_arr(pred_masks)
+    pred_logits = reshape_arr(pred_logits)
+    cols = 4
 
     fig, axes = plt.subplots(
         nm_img_to_plot, cols, figsize=(cols * figsize, nm_img_to_plot * figsize), squeeze=False
     )
     axes[0, 0].set_title("original", fontsize=15)
     axes[0, 1].set_title("ground truth", fontsize=15)
-    axes[0, 2].set_title("prediction", fontsize=15)
+    axes[0, 2].set_title("logits prediction", fontsize=15)
+    axes[0, 3].set_title("rounded prediction", fontsize=15)
     for m in range(0, nm_img_to_plot):
         axes[m, 0].imshow(org_imgs[im_id], cmap=get_cmap(org_imgs))
         axes[m, 0].set_axis_off()
         axes[m, 1].imshow(mask_imgs[im_id], cmap=get_cmap(mask_imgs))
         axes[m, 1].set_axis_off()
-        axes[m, 2].imshow(pred_imgs[im_id], cmap=get_cmap(pred_imgs))
+        axes[m, 2].imshow(pred_logits[im_id], cmap=get_cmap(pred_logits))
         axes[m, 2].set_axis_off()
+        axes[m, 3].imshow(pred_masks[im_id], cmap=get_cmap(pred_masks))
+        axes[m, 3].set_axis_off()
         im_id += 1
 
-    plt.savefig("experiment_"+str()+"epoch"+str(epoch)+"prediction.png", dpi=150)
+    plt.savefig(save_path, dpi=150)
     # plt.show()
 
 

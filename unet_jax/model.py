@@ -59,7 +59,6 @@ class ContractingBlock(nn.Module):
             self.conv_2 = nn.Conv(features=self.num_features,
                                   kernel_size=(3, 3), padding='VALID', kernel_init=self.default_weight_init)
 
-    @nn.compact
     def __call__(self, input):
         input = self.conv_1(input)
         input = nn.relu(input)
@@ -89,7 +88,6 @@ class ExpandingBlock(nn.Module):
                                   kernel_size=(3, 3), padding='VALID', kernel_init=self.default_weight_init)
             self.crop = center_crop_array
 
-    @nn.compact
     def __call__(self, input, residual_feature_map):
         input = self.conv_tranpose(input)
         cropped_feature_map = self.crop(residual_feature_map, input.shape[1])

@@ -15,37 +15,39 @@ from torch.utils.tensorboard import SummaryWriter
 
 from keras_unet_utils import plot_imgs, get_date_string
 
-from datetime import datetime
 import jax.numpy as jnp
 
+
 def plot_predictions(dataset, unet, unet_train_state, epoch):
+    pred_logits = []
     pred_masks = []
     for test_img in dataset['test']['images']:
-        mask_pred = unet.apply(
+        logits_pred = unet.apply(
             {"params": unet_train_state.train_state.params}, test_img.reshape((1,)+test_img.shape))[0]
-        mask_pred = jnp.round(jax.nn.sigmoid(mask_pred))
+        mask_pred = jnp.round(jax.nn.sigmoid(logits_pred))
+        pred_logits.append(logits_pred)
         pred_masks.append(mask_pred)
     pred_masks = np.array(pred_masks)
+    pred_logits = np.array(pred_logits)
     original_imgs = np.array(dataset['test']['images'])
     original_masks = np.array(dataset['test']['masks'])
-    # print(pred_imgs.shape)
-    # print(original_imgs.shape)
-    # print(original_masks.shape)
 
     plot_imgs(
         original_imgs,
         original_masks,
-        pred_imgs=pred_masks,
+        pred_logits=pred_logits,
+        pred_masks=pred_masks,
         nm_img_to_plot=1,
         figsize=10,
-        epoch=epoch)
+        # save_path="experiment-"+get_date_string()+"_epoch-" + str(epoch)+"_prediction.png")
+        save_path=f"experiment-{get_date_string()}_epoch-{epoch}_prediction.png")
 
 
 def train_unet():
     learning_rate = 1e-2
     momentum = 0.99
-    num_epochs = 10
-    steps_per_epoch = 100
+    num_epochs = 1
+    steps_per_epoch = 1
     train_split_size = 0.5
 
     summary_writer = SummaryWriter("logs/"+get_date_string())
@@ -77,16 +79,8 @@ def train_unet():
                                                  "test": float(np.array(test_metrics["accuracy"]))},
                                    unet_train_state.current_epoch)
 
-        # summary_writer.add_scalar(f'train/loss', float(np.array(train_metrics["loss"])),
-        #                           unet_train_state.current_epoch)
-        # summary_writer.add_scalar(f'train/accuracy', float(np.array(train_metrics["accuracy"])),
-        #                           unet_train_state.current_epoch)
-        # summary_writer.add_scalar(f'test/loss', float(np.array(test_metrics["loss"])),
-        #                           unet_train_state.current_epoch)
-        # summary_writer.add_scalar(f'test/accuracy', float(np.array(test_metrics["accuracy"])),
-        #                           unet_train_state.current_epoch)
+        plot_predictions(dataset, unet, unet_train_state, epoch)
 
-    plot_predictions(dataset, unet, unet_train_state, epoch)
     summary_writer.close()
 
 
