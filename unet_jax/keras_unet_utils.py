@@ -2,6 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from keras.preprocessing.image import ImageDataGenerator
 
+def get_date_string():
+    current_date = datetime.now()
+    return current_date.strftime('%d-%m-%Y_%Hh%Mm')
+
 MASK_COLORS = [
     "red", "green", "blue",
     "yellow", "magenta", "cyan"
@@ -205,7 +209,7 @@ def plot_imgs(
         axes[m, 2].set_axis_off()
         im_id += 1
 
-    plt.savefig("predictions_"+str(epoch)+".png", dpi=150)
+    plt.savefig("experiment_"+str()+"epoch"+str(epoch)+"prediction.png", dpi=150)
     # plt.show()
 
 

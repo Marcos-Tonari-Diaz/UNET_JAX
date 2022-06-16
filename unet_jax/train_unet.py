@@ -13,16 +13,10 @@ from absl import logging
 from torch.utils.tensorboard import SummaryWriter
 
 
-from keras_unet_utils import plot_imgs
+from keras_unet_utils import plot_imgs, get_date_string
 
 from datetime import datetime
 import jax.numpy as jnp
-
-
-def get_date_string():
-    current_date = datetime.now()
-    return current_date.strftime('%d-%m-%Y_%Hh%Mm')
-
 
 def plot_predictions(dataset, unet, unet_train_state, epoch):
     pred_masks = []
@@ -50,8 +44,8 @@ def plot_predictions(dataset, unet, unet_train_state, epoch):
 def train_unet():
     learning_rate = 1e-2
     momentum = 0.99
-    num_epochs = 20
-    steps_per_epoch = 10
+    num_epochs = 10
+    steps_per_epoch = 100
     train_split_size = 0.5
 
     summary_writer = SummaryWriter("logs/"+get_date_string())
