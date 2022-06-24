@@ -48,8 +48,8 @@ def compute_average_metrics(metrics_list):
 
 
 def print_metrics(metrics, epoch, description: str):
-    print(description + ': epoch: %d, loss: %.8f, accuracy: %.4f' %
-          (epoch, metrics["loss"], metrics["accuracy"]))
+    print(description + ': epoch: %d, loss: %.8f, accuracy: %.4f, iou: %.8f' %
+          (epoch, metrics["loss"], metrics["accuracy"], metrics["iou"]))
 
 
 @jax.jit
@@ -65,7 +65,8 @@ def train_step(train_state, batch):
     (loss, logits), grads = compute_loss_grads(train_state.params)
     train_state = train_state.apply_gradients(grads=grads)
     batch_accuracy = compute_accuracy(logits, batch['mask'])
-    return train_state, {"loss": loss, "accuracy": batch_accuracy}
+    batch_iou = compute_accuracy(logits, batch['mask'])
+    return train_state, {"loss": loss, "accuracy": batch_accuracy, "iou": batch_iou}
 
 
 @jax.jit
@@ -75,7 +76,8 @@ def eval_step(train_state, batch):
         {'params': train_state.params}, batch['image'])
     loss = loss_function(logits, batch['mask'])
     batch_accuracy = compute_accuracy(logits, batch['mask'])
-    return {"loss": loss, "accuracy": batch_accuracy}
+    batch_iou = compute_accuracy(logits, batch['mask'])
+    return {"loss": loss, "accuracy": batch_accuracy, "iou": batch_iou}
 
 
 class UnetTrainState():
@@ -119,7 +121,7 @@ class UnetTrainState():
         self.current_epoch += 1
         average_metrics = compute_average_metrics(train_metrics)
         print_metrics(average_metrics, self.current_epoch, "train epoch")
-        return average_metrics
+        return train_state, average_metrics
 
     def eval_model(self, train_state, test_dataset):
         test_metrics = []

@@ -16,12 +16,12 @@ from keras_unet_utils import plot_imgs, get_date_string
 import jax.numpy as jnp
 
 
-def plot_predictions(dataset, unet, unet_train_state, epoch):
+def plot_predictions(dataset, unet, unet_train_state, train_state, epoch):
     pred_logits = []
     pred_masks = []
     for test_img in dataset['test']['images']:
         logits_pred = unet.apply(
-            {"params": unet_train_state.train_state.params}, test_img.reshape((1,)+test_img.shape))[0]
+            {"params": train_state.params}, test_img.reshape((1,)+test_img.shape))[0]
         mask_pred = jnp.round(jax.nn.sigmoid(logits_pred))
         pred_logits.append(logits_pred)
         pred_masks.append(mask_pred)
@@ -59,6 +59,7 @@ def train_unet():
 
     unet = UnetJAX(input_image_size=512,
                    use_activation=False, use_padding=True)
+
     optimizer = optax.sgd(learning_rate=learning_rate, momentum=momentum)
 
     # UnetTrainState.registerAsPyTree()
@@ -67,8 +68,8 @@ def train_unet():
     train_state = unet_train_state.create_training_state(unet, optimizer)
 
     for epoch in range(num_epochs):
-        train_metrics: Dict = unet_train_state.train_epoch(train_state,
-                                                           data_generator=unet_datagen)
+        train_state, train_metrics: Dict = unet_train_state.train_epoch(train_state,
+                                                                        data_generator=unet_datagen)
         test_metrics: Dict = unet_train_state.eval_model(train_state,
                                                          test_dataset=dataset["test"])
 
@@ -80,7 +81,7 @@ def train_unet():
                                                  "test": float(np.array(test_metrics["accuracy"]))},
                                    unet_train_state.current_epoch)
 
-        plot_predictions(dataset, unet, unet_train_state, epoch)
+        # plot_predictions(dataset, unet, unet_train_state, epoch)
 
     summary_writer.close()
 

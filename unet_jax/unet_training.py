@@ -33,7 +33,12 @@ def logits_to_binary(logits):
 def compute_accuracy(logits, masks):
     return jnp.mean(logits_to_binary(logits) == masks)
 
-# def compute_IOU(logits, masks):
+
+def compute_IOU(logits, masks):
+    predictions = logits_to_binary(logits)
+    intersection = jnp.logical_and(masks, predictions)
+    union = jnp.logical_or(masks, predictions)
+    return jnp.sum(intersection) / jnp.sum(union)
 
 
 def compute_average_metrics(metrics_list):
@@ -49,8 +54,8 @@ def compute_average_metrics(metrics_list):
 
 
 def print_metrics(metrics, epoch, description: str):
-    print(description + ': epoch: %d, loss: %.8f, accuracy: %.4f' %
-          (epoch, metrics["loss"], metrics["accuracy"]))
+    print(description + ': epoch: %d, loss: %.8f, accuracy: %.4f, iou: %.8f' %
+          (epoch, metrics["loss"], metrics["accuracy"], metrics["iou"]))
 
 
 class UnetTrainState():
@@ -85,7 +90,7 @@ class UnetTrainState():
         self.train_state = train_state.TrainState.create(
             apply_fn=self.unet.apply, params=unet_params, tx=optimizer)
 
-    @jax.jit
+    # @jax.jit
     def train_step(self, batch):
         def compute_loss_function(params):
             logits = self.unet.apply(
@@ -99,15 +104,17 @@ class UnetTrainState():
 
         self.train_state = self.train_state.apply_gradients(grads=grads)
         batch_accuracy = compute_accuracy(logits, batch['mask'])
-        return {"loss": loss, "accuracy": batch_accuracy}
+        batch_iou = compute_accuracy(logits, batch['mask'])
+        return {"loss": loss, "accuracy": batch_accuracy, "iou": batch_iou}
 
-    @jax.jit
+    # @jax.jit
     def eval_step(self, batch):
         logits = self.unet.apply(
             {'params': self.train_state.params}, batch['image'])
         loss = loss_function(logits, batch['mask'])
         batch_accuracy = compute_accuracy(logits, batch['mask'])
-        return {"loss": loss, "accuracy": batch_accuracy}
+        batch_iou = compute_accuracy(logits, batch['mask'])
+        return {"loss": loss, "accuracy": batch_accuracy, "iou": batch_iou}
 
     # batch size is 1 image (paper)
     def train_epoch(self, data_generator: UnetTrainDataGenerator):
