@@ -1,7 +1,5 @@
-from cProfile import label
-from typing import Any, List, Tuple
+from typing import List, Tuple
 
-from torch import batch_norm
 from model import UnetJAX
 from flax.training import train_state
 import jax
@@ -11,6 +9,8 @@ import flax.linen as nn
 
 from flax.training import train_state
 from data_loader import UnetTrainDataGenerator
+
+from jax import tree_util
 
 
 def make_batch(image, mask):
@@ -34,21 +34,31 @@ def compute_accuracy(logits, masks):
     return jnp.mean(logits_to_binary(logits) == masks)
 
 
+def compute_IOU(logits, masks):
+    predictions = logits_to_binary(logits)
+    intersection = jnp.logical_and(masks, predictions)
+    union = jnp.logical_or(masks, predictions)
+    return jnp.sum(intersection) / jnp.sum(union)
+
+
 def compute_average_metrics(metrics_list):
     loss_list = [metrics["loss"] for metrics in metrics_list]
     accuracy_list = [metrics["accuracy"] for metrics in metrics_list]
+    iou_list = [metrics["iou"] for metrics in metrics_list]
     loss_arr = jnp.array(loss_list)
     accuracy_arr = jnp.array(accuracy_list)
+    iou_arr = jnp.array(iou_list)
     average_metrics = {
         'loss': jnp.mean(loss_arr),
-        'accuracy': jnp.mean(accuracy_arr)
+        'accuracy': jnp.mean(accuracy_arr),
+        'iou': jnp.mean(iou_arr)
     }
     return average_metrics
 
 
 def print_metrics(metrics, epoch, description: str):
-    print(description + ': epoch: %d, loss: %.8f, accuracy: %.4f' %
-          (epoch, metrics["loss"], metrics["accuracy"]))
+    print(description + ': epoch: %d, loss: %.8f, accuracy: %.4f, iou: %.8f' %
+          (epoch, metrics["loss"], metrics["accuracy"], metrics["iou"]))
 
 
 class UnetTrainState():
@@ -69,6 +79,7 @@ class UnetTrainState():
         self.train_state = train_state.TrainState.create(
             apply_fn=self.unet.apply, params=unet_params, tx=optimizer)
 
+    # @jax.jit
     def train_step(self, batch):
         def compute_loss_function(params):
             logits = self.unet.apply(
@@ -77,17 +88,22 @@ class UnetTrainState():
             return loss, logits
         compute_loss_grads = jax.value_and_grad(
             compute_loss_function, has_aux=True)
+
         (loss, logits), grads = compute_loss_grads(self.train_state.params)
+
         self.train_state = self.train_state.apply_gradients(grads=grads)
         batch_accuracy = compute_accuracy(logits, batch['mask'])
-        return {"loss": loss, "accuracy": batch_accuracy}
+        batch_iou = compute_accuracy(logits, batch['mask'])
+        return {"loss": loss, "accuracy": batch_accuracy, "iou": batch_iou}
 
+    # @jax.jit
     def eval_step(self, batch):
         logits = self.unet.apply(
             {'params': self.train_state.params}, batch['image'])
         loss = loss_function(logits, batch['mask'])
         batch_accuracy = compute_accuracy(logits, batch['mask'])
-        return {"loss": loss, "accuracy": batch_accuracy}
+        batch_iou = compute_accuracy(logits, batch['mask'])
+        return {"loss": loss, "accuracy": batch_accuracy, "iou": batch_iou}
 
     # batch size is 1 image (paper)
     def train_epoch(self, data_generator: UnetTrainDataGenerator):

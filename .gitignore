@@ -8,11 +8,5 @@ __pycache__/
 *.log
 *.err
 *.out
-jax_experiments/tensorboard_logs/events.out.tfevents.1655423158.marcosdiaz-XPS-13-9370.profile-empty
-jax_experiments/tensorboard_logs/plugins/profile/2022_06_16_20_45_58/marcosdiaz-XPS-13-9370.input_pipeline.pb
-jax_experiments/tensorboard_logs/plugins/profile/2022_06_16_20_45_58/marcosdiaz-XPS-13-9370.kernel_stats.pb
-jax_experiments/tensorboard_logs/plugins/profile/2022_06_16_20_45_58/marcosdiaz-XPS-13-9370.memory_profile.json.gz
-jax_experiments/tensorboard_logs/plugins/profile/2022_06_16_20_45_58/marcosdiaz-XPS-13-9370.overview_page.pb
-jax_experiments/tensorboard_logs/plugins/profile/2022_06_16_20_45_58/marcosdiaz-XPS-13-9370.tensorflow_stats.pb
-jax_experiments/tensorboard_logs/plugins/profile/2022_06_16_20_45_58/marcosdiaz-XPS-13-9370.trace.json.gz
-jax_experiments/tensorboard_logs/plugins/profile/2022_06_16_20_45_58/marcosdiaz-XPS-13-9370.xplane.pb
+jax_experiments/tensorboard_logs/*
+results_logs/
