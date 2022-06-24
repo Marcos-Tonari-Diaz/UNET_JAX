@@ -2,6 +2,7 @@ import jax
 import jax.numpy as jnp
 import flax.linen as nn
 from typing import (Any, Callable, Tuple)
+from jax import tree_util
 
 PRNGKey = Any
 Shape = Tuple[int, ...]

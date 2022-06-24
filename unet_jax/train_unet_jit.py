@@ -1,4 +1,3 @@
-from threading import current_thread
 from typing import Dict
 import jax
 
@@ -7,7 +6,9 @@ from model import UnetJAX
 import optax
 
 from data_loader import prepare_dataset, UnetTrainDataGenerator
-from unet_training import UnetTrainState
+from unet_training_jit import UnetTrainState
+
+from absl import logging
 from torch.utils.tensorboard import SummaryWriter
 
 from keras_unet_utils import plot_imgs, get_date_string
@@ -58,18 +59,18 @@ def train_unet():
 
     unet = UnetJAX(input_image_size=512,
                    use_activation=False, use_padding=True)
-
     optimizer = optax.sgd(learning_rate=learning_rate, momentum=momentum)
 
-    UnetTrainState.registerAsPyTree()
-    unet_train_state = UnetTrainState(
-        unet, optimizer, seed=0, steps_per_epoch=steps_per_epoch)
+    # UnetTrainState.registerAsPyTree()
+    unet_train_state = UnetTrainState(steps_per_epoch=steps_per_epoch)
+
+    train_state = unet_train_state.create_training_state(unet, optimizer)
 
     for epoch in range(num_epochs):
-        train_metrics: Dict = unet_train_state.train_epoch(
-            data_generator=unet_datagen)
-        test_metrics: Dict = unet_train_state.eval_model(
-            test_dataset=dataset["test"])
+        train_metrics: Dict = unet_train_state.train_epoch(train_state,
+                                                           data_generator=unet_datagen)
+        test_metrics: Dict = unet_train_state.eval_model(train_state,
+                                                         test_dataset=dataset["test"])
 
         summary_writer.add_scalars(f'loss', {"train": float(np.array(train_metrics["loss"])),
                                              "test": float(np.array(test_metrics["loss"]))},
