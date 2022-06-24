@@ -68,10 +68,10 @@ def train_unet():
     train_state = unet_train_state.create_training_state(unet, optimizer)
 
     for epoch in range(num_epochs):
-        train_state, train_metrics: Dict = unet_train_state.train_epoch(train_state,
-                                                                        data_generator=unet_datagen)
-        test_metrics: Dict = unet_train_state.eval_model(train_state,
-                                                         test_dataset=dataset["test"])
+        train_state, train_metrics = unet_train_state.train_epoch(train_state,
+                                                                  data_generator=unet_datagen)
+        test_metrics = unet_train_state.eval_model(train_state,
+                                                   test_dataset=dataset["test"])
 
         summary_writer.add_scalars(f'loss', {"train": float(np.array(train_metrics["loss"])),
                                              "test": float(np.array(test_metrics["loss"]))},
