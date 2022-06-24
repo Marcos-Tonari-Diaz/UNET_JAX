@@ -9,3 +9,4 @@ __pycache__/
 *.err
 *.out
 jax_experiments/tensorboard_logs/*
+results_logs/

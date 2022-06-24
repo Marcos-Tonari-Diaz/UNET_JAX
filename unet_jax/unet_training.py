@@ -44,11 +44,14 @@ def compute_IOU(logits, masks):
 def compute_average_metrics(metrics_list):
     loss_list = [metrics["loss"] for metrics in metrics_list]
     accuracy_list = [metrics["accuracy"] for metrics in metrics_list]
+    iou_list = [metrics["iou"] for metrics in metrics_list]
     loss_arr = jnp.array(loss_list)
     accuracy_arr = jnp.array(accuracy_list)
+    iou_arr = jnp.array(iou_list)
     average_metrics = {
         'loss': jnp.mean(loss_arr),
-        'accuracy': jnp.mean(accuracy_arr)
+        'accuracy': jnp.mean(accuracy_arr),
+        'iou': jnp.mean(iou_arr)
     }
     return average_metrics
 
