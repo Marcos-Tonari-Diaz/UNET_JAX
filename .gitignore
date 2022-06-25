@@ -10,3 +10,5 @@ __pycache__/
 *.out
 jax_experiments/tensorboard_logs/*
 results_logs/
+logs/
+.vscode/

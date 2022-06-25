@@ -36,12 +36,12 @@ def prepare_dataset(paths, train_split_size):
 
 
 class UnetTrainDataGenerator:
-    def __init__(self, images, masks, seed):
+    def __init__(self, images, masks, batch_size=4, seed=0):
         self.keras_generator = get_augmented(
             images,
             masks,
             seed=seed,
-            batch_size=1,
+            batch_size=batch_size,
             data_gen_args=dict(
                 rotation_range=15.,
                 width_shift_range=0.05,
@@ -71,4 +71,4 @@ if __name__ == "__main__":
     unet_datagen = UnetTrainDataGenerator(
         dataset["train"]["images"], dataset["train"]["masks"], seed=1)
     batch = unet_datagen.get_batch_jax()
-    print(batch["image"])
+    print(batch["image"].shape)
