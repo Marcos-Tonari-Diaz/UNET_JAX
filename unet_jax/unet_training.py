@@ -57,7 +57,7 @@ def compute_average_metrics(metrics_list):
 
 
 def print_metrics(metrics, epoch, description: str):
-    print(description + ': epoch: %d, loss: %.8f, accuracy: %.4f, iou: %.8f' %
+    print(description + ' %d, loss: %.8f, accuracy: %.4f, iou: %.8f' %
           (epoch, metrics["loss"], metrics["accuracy"], metrics["iou"]))
 
 
@@ -94,20 +94,23 @@ class UnetTrainState(train_state.TrainState):
     compute_loss_grad: Callable = flax.struct.field(pytree_node=False)
     steps_per_epoch: int = 1
 
-    def train_epoch(self, data_generator: UnetTrainDataGenerator):
+    @staticmethod
+    def train_epoch(state, data_generator: UnetTrainDataGenerator):
         train_metrics: List[Tuple] = []
         for _ in range(UnetTrainState.steps_per_epoch):
             batch = data_generator.get_batch_jax()
-            self, batch_metrics = train_step(self, batch)
+            state, batch_metrics = train_step(state, batch)
             train_metrics.append(batch_metrics)
+            print_metrics(batch_metrics, state.step, "train step:")
         average_metrics = compute_average_metrics(train_metrics)
-        return average_metrics
+        return state, average_metrics
 
-    def eval_model(self, test_dataset: Dict):
+    @staticmethod
+    def eval_model(state, test_dataset: Dict):
         test_metrics = []
         for image, mask in zip(test_dataset["images"], test_dataset["masks"]):
             batch = make_batch(image, mask)
-            batch_metrics = eval_step(self, batch)
+            batch_metrics = eval_step(state, batch)
             batch_metrics = jax.device_get(batch_metrics)
             test_metrics.append(batch_metrics)
         average_metrics = compute_average_metrics(test_metrics)
