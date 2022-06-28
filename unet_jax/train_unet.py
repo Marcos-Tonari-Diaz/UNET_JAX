@@ -8,9 +8,12 @@ import numpy as np
 from data_loader import prepare_dataset, UnetTrainDataGenerator
 from model import UnetJAX
 from unet_training import UnetTrainState, print_metrics, get_loss_grad
-from keras_unet_utils import plot_imgs, get_date_string
+from unet_utils import plot_imgs, get_date_string
 
 from torch.utils.tensorboard import SummaryWriter
+from flax.jax_utils import replicate
+
+from jax.tree_util import tree_structure
 
 
 def plot_predictions(dataset, unet, unet_train_state, epoch):
@@ -41,14 +44,17 @@ def train_unet():
     input_img_size = 512
     learning_rate = 1e-2
     momentum = 0.99
-    num_epochs = 10
-    steps_per_epoch = 10
-    mini_batch_size = 1
+    num_epochs = 1
+    mini_batch_size = jax.device_count()
+    steps_per_epoch = 1
     train_split_size = 0.5
     rng_seed = 0
     data_generator_seed = 1
 
-    # summary_writer = SummaryWriter("logs/"+get_date_string())
+    print(f'mini batch size: {mini_batch_size}')
+    print(f'steps per epoch: {steps_per_epoch}')
+
+    summary_writer = SummaryWriter("logs/"+get_date_string())
 
     paths = {"images": "../data/isbi2015/train/image/*.png",
              "masks": "../data/isbi2015/train/label/*.png"}
@@ -67,26 +73,32 @@ def train_unet():
         apply_fn=unet.apply,
         params=unet_params,
         tx=optimizer,
-        compute_loss_grad=get_loss_grad())
+        compute_loss_grad=get_loss_grad(),
+        steps_per_epoch=steps_per_epoch,
+        mini_batch_size=mini_batch_size
+    )
 
     UnetTrainState.steps_per_epoch = steps_per_epoch
+    UnetTrainState.mini_batch_size = mini_batch_size
+
+    replicated_train_state = replicate(unet_train_state)
 
     for epoch in range(num_epochs):
-        unet_train_state, train_metrics = UnetTrainState.train_epoch(unet_train_state,
-                                                                     data_generator=unet_datagen)
+        replicated_train_state, train_metrics = UnetTrainState.train_epoch(replicated_train_state,
+                                                                           data_generator=unet_datagen)
         print_metrics(train_metrics, epoch, "train epoch: ")
 
-    # test_metrics = unet_train_state.eval_model(unet_train_state,
-    #                                                  test_dataset=dataset["test"])
-    # print_metrics(test_metrics, epoch, "test epoch: ")
+        # test_metrics = unet_train_state.eval_model(unet_train_state,
+        #                                            test_dataset=dataset["test"])
+        # print_metrics(test_metrics, epoch, "test epoch: ")
 
-    # summary_writer.add_scalars(f'loss', {"train": float(np.array(train_metrics["loss"])),
-    #                                      "test": float(np.array(test_metrics["loss"]))}, epoch)
-    # summary_writer.add_scalars(f'accuracy', {"train": float(np.array(train_metrics["accuracy"])),
-    #                                          "test": float(np.array(test_metrics["accuracy"]))}, epoch)
-    # plot_predictions(dataset, unet, unet_train_state, epoch)
+        # summary_writer.add_scalars(f'loss', {"train": float(np.array(train_metrics["loss"])),
+        #                                      "test": float(np.array(test_metrics["loss"]))}, epoch)
+        # summary_writer.add_scalars(f'accuracy', {"train": float(np.array(train_metrics["accuracy"])),
+        #                                          "test": float(np.array(test_metrics["accuracy"]))}, epoch)
+        # plot_predictions(dataset, unet, unet_train_state, epoch)
 
-    # summary_writer.close()
+    summary_writer.close()
 
 
 if __name__ == "__main__":
