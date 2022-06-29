@@ -44,9 +44,9 @@ def train_unet():
     input_img_size = 512
     learning_rate = 1e-2
     momentum = 0.99
-    num_epochs = 1
+    num_epochs = 10
     mini_batch_size = jax.device_count()
-    steps_per_epoch = 1
+    steps_per_epoch = 10
     train_split_size = 0.5
     rng_seed = 0
     data_generator_seed = 1

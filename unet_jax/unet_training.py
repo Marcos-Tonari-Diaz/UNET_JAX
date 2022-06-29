@@ -101,6 +101,7 @@ class UnetTrainState(train_state.TrainState):
         step_count = 0
         for _ in range(UnetTrainState.steps_per_epoch):
             batch = data_generator.get_batch()
+            # print(batch["image"].shape)
             state, batch_metrics = train_step(state, batch)
             local_batch_metrics = jax.device_get(batch_metrics)
             batch_metrics = {key: local_batch_metrics[key][0]

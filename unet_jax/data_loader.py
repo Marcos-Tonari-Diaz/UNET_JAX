@@ -1,4 +1,5 @@
 from random import sample
+import jax
 import jax.numpy as jnp
 import numpy as np
 from sklearn import datasets
@@ -75,6 +76,11 @@ class UnetTrainDataGenerator:
             images_batch.shape[0], 1, images_batch.shape[1], images_batch.shape[2], images_batch.shape[3])
         masks_batch = masks_batch.reshape(
             masks_batch.shape[0], 1, masks_batch.shape[1], masks_batch.shape[2], masks_batch.shape[3])
+        if images_batch.shape[0] != jax.device_count():
+            images_batch = np.append(images_batch, np.reshape(
+                images_batch[0], (1,)+images_batch[0].shape), axis=0)
+            masks_batch = np.append(masks_batch, np.reshape(
+                masks_batch[0], (1,)+masks_batch[0].shape), axis=0)
         batch = {"image": images_batch,
                  "mask": masks_batch}
         # batch = {"image": [add_dummy_batch_dimension(image) for image in images_batch],
