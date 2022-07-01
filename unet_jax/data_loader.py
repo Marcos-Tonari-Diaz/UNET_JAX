@@ -1,12 +1,11 @@
-from random import sample
-import jax
-import jax.numpy as jnp
+from typing import Tuple
 import numpy as np
-from sklearn import datasets
-from unet_utils import get_augmented, plot_imgs
 from PIL import Image
 import glob
+
 from sklearn.model_selection import train_test_split
+from keras.preprocessing.image import ImageDataGenerator
+import tensorflow as tf
 
 
 def scale_pixel_values(array):
@@ -23,21 +22,11 @@ def load_images_as_array(path):
     return image_arr
 
 
-def add_dummy_batch_dimension(image, mask):
-    return image.reshape((1,)+image.shape), mask.reshape((1,)+mask.shape)
-
-
 def add_dummy_batch_dimension(array):
-    return array.reshape((1,)+array.shape)
+    return array.reshape((array.shape[0], 1) + (array.shape[1:]))
 
 
-def make_sample(image, mask):
-    image, mask = add_dummy_batch_dimension(image, mask)
-    sample = {"image": image, "mask": mask}
-    return sample
-
-
-def prepare_dataset(paths, train_split_size):
+def load_dataset(paths, train_split_size):
     images = load_images_as_array(paths["images"])
     masks = load_images_as_array(paths["masks"])
     images = scale_pixel_values(images)
@@ -51,82 +40,128 @@ def prepare_dataset(paths, train_split_size):
     return dataset
 
 
-class UnetTrainDataGenerator:
-    def __init__(self, images, masks, batch_size=4, seed=0):
-        self.batch_size = batch_size
-        self.keras_generator = get_augmented(
-            images,
-            masks,
-            seed=seed,
-            batch_size=batch_size,
-            data_gen_args=dict(
-                rotation_range=15.,
-                width_shift_range=0.05,
-                height_shift_range=0.05,
-                shear_range=50,
-                zoom_range=0.2,
-                horizontal_flip=True,
-                vertical_flip=True,
-                fill_mode='constant'
-            ))
+def prepare_batch(batch: Tuple):
+    images_batch, masks_batch = batch
 
-    def get_batch(self):
-        images_batch, masks_batch = next(self.keras_generator)
-        images_batch = images_batch.reshape(
-            images_batch.shape[0], 1, images_batch.shape[1], images_batch.shape[2], images_batch.shape[3])
-        masks_batch = masks_batch.reshape(
-            masks_batch.shape[0], 1, masks_batch.shape[1], masks_batch.shape[2], masks_batch.shape[3])
-        if images_batch.shape[0] != jax.device_count():
-            images_batch = np.append(images_batch, np.reshape(
-                images_batch[0], (1,)+images_batch[0].shape), axis=0)
-            masks_batch = np.append(masks_batch, np.reshape(
-                masks_batch[0], (1,)+masks_batch[0].shape), axis=0)
-        batch = {"image": images_batch,
-                 "mask": masks_batch}
-        # batch = {"image": [add_dummy_batch_dimension(image) for image in images_batch],
-        #          "mask": [add_dummy_batch_dimension(mask) for mask in masks_batch]}
+    images_batch = add_dummy_batch_dimension(images_batch)
+    masks_batch = add_dummy_batch_dimension(masks_batch)
+    return images_batch, masks_batch
+
+
+class UnetDataGenerator:
+    def __init__(self, batch_size=4):
+        self.batch_size = batch_size
+        self.padding_batch_generator = None
+
+    def append_batch_padding(self, batch, pad_batch):
+        padding_size = self.batch_size - batch.shape[0]
+        pad_batch = pad_batch[0:padding_size]
+        pad_batch = add_dummy_batch_dimension(pad_batch)
+        batch = np.append(batch, pad_batch, axis=0)
         return batch
 
+    def pad_batch(self, batch):
+        images_batch, masks_batch = batch
+        if images_batch.shape[0] < self.batch_size:
+            images_pad_batch, masks_pad_batch = self.get_pad_batch()
+            images_batch = self.append_batch_padding(images_batch,
+                                                     images_pad_batch)
+            masks_batch = self.append_batch_padding(masks_batch,
+                                                    masks_pad_batch)
 
-def get_mini_batch_size_ajusted_samples(test_dataset, mini_batch_size):
-    samples = [make_sample(image, mask) for image, mask in zip(
-        test_dataset["images"], test_dataset["masks"])]
-    samples_gap_number = len(samples) % mini_batch_size
-
-    if samples_gap_number != 0:
-        for index_offset in range(mini_batch_size - samples_gap_number):
-            samples.append(samples[index_offset])
-
-    assert len(samples) % mini_batch_size == 0
-    return samples
+        return {"images": images_batch, "masks": masks_batch}
 
 
-def test_data_batch_generator(test_dataset, mini_batch_size):
-    samples = get_mini_batch_size_ajusted_samples(
-        test_dataset, mini_batch_size)
-    batches = np.array(samples).reshape((mini_batch_size, -1))
-    for batch in batches:
-        yield batch
+class UnetTrainDataGenerator(UnetDataGenerator):
+    def __init__(self, train_dataset, data_gen_args, batch_size=4, seed=0, steps_per_epoch=100):
+        UnetDataGenerator.__init__(self, batch_size=batch_size)
+        self.steps_per_epoch = steps_per_epoch
+
+        masks_train_generator = ImageDataGenerator(**data_gen_args)
+        masks_train_generator = ImageDataGenerator(**data_gen_args)
+
+        masks_train_generator.fit(
+            train_dataset["images"], augment=True, seed=seed)
+        masks_train_generator.fit(
+            train_dataset["masks"], augment=True, seed=seed)
+
+        augmented_images_generator = masks_train_generator.flow(
+            train_dataset["images"], batch_size=batch_size, shuffle=True, seed=seed
+        )
+        augmented_masks_generator = masks_train_generator.flow(
+            train_dataset["masks"], batch_size=batch_size, shuffle=True, seed=seed
+        )
+
+        self.keras_generator = zip(
+            augmented_images_generator, augmented_masks_generator)
+
+    def generator(self):
+        for _ in range(self.steps_per_epoch):
+            batch = next(self.keras_generator)
+            batch = prepare_batch(batch)
+            batch = self.pad_batch(batch)
+            images_batch = batch["images"]
+            masks_batch = batch["masks"]
+            yield {"image": images_batch, "mask": masks_batch}
+
+    def get_pad_batch(self):
+        return next(self.keras_generator)
+
+
+class UnetTestDataGenerator(UnetDataGenerator):
+    def __init__(self, test_dataset, batch_size=4):
+        UnetDataGenerator.__init__(self, batch_size=batch_size)
+        self.test_data_generator = self.get_test_data_generator(
+            test_dataset)
+        self.padding_batch_generator = self.get_test_data_generator(
+            test_dataset)
+
+    def get_test_data_generator(self, test_dataset):
+        images = (tf.data.Dataset.from_tensor_slices(
+            test_dataset["images"]).batch(self.batch_size))
+        masks = (tf.data.Dataset.from_tensor_slices(
+            test_dataset["masks"]).batch(self.batch_size))
+        return zip(images, masks)
+
+    def generator(self):
+        for batch in self.test_data_generator:
+            images_batch, masks_batch = batch
+            batch = prepare_batch(
+                (images_batch.numpy(), masks_batch.numpy()))
+            batch = self.pad_batch(batch)
+            images_batch = batch["images"]
+            masks_batch = batch["masks"]
+            yield {"image": images_batch, "mask": masks_batch}
+
+    def get_pad_batch(self):
+        images_batch, masks_batch = next(self.padding_batch_generator)
+        return images_batch.numpy(), masks_batch.numpy()
 
 
 if __name__ == "__main__":
     paths = {"images": "../data/isbi2015/train/image/*.png",
              "masks": "../data/isbi2015/train/label/*.png"}
-    dataset = prepare_dataset(paths, train_split_size=0.5)
+    dataset = load_dataset(paths, train_split_size=0.5)
+    data_gen_args = dict(
+        rotation_range=15.,
+        width_shift_range=0.05,
+        height_shift_range=0.05,
+        shear_range=50,
+        zoom_range=0.2,
+        horizontal_flip=True,
+        vertical_flip=True,
+        fill_mode='constant'
+    )
 
-    unet_datagen = UnetTrainDataGenerator(
-        dataset["train"]["images"], dataset["train"]["masks"], seed=1, batch_size=4)
-    batch = unet_datagen.get_batch()
-    # # print(batch.shape)
-    # print(batch["image"].shape)
+    train_datagen = UnetTrainDataGenerator(
+        dataset['train'], data_gen_args, seed=1, batch_size=4, steps_per_epoch=10)
 
-    # unet_datagen = UnetTrainDataGenerator(
-    #     dataset["train"]["images"], dataset["train"]["masks"], seed=1, batch_size=4)
-    # batch = unet_datagen.get_batch()
-    # # print(batch.shape)
-    # print(batch[0]["image"].shape)
+    test_datagen = UnetTestDataGenerator(dataset['test'], batch_size=4)
 
-    # for i in test_data_batch_generator(dataset["test"], 4):
-    #     print(i.shape)
-    #     print(i[0]["image"].shape)
-    #     break
+    print("train")
+    for step, batch in enumerate(train_datagen.generator()):
+        print(f'step {step} : {batch["image"].shape}')
+
+    print("test")
+    for step, batch in enumerate(test_datagen.generator()):
+        print(f'step {step} : {batch["image"].shape}')

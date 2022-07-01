@@ -8,7 +8,7 @@ import flax
 import jax.numpy as jnp
 from flax.training import train_state
 
-from data_loader import UnetTrainDataGenerator, test_data_batch_generator
+from data_loader import UnetTestDataGenerator, UnetTrainDataGenerator
 
 
 def loss_function(logits, labels):
@@ -37,12 +37,9 @@ def compute_metrics(logits, masks):
 
 
 def compute_average_metrics(metrics_list):
-    loss_list = [metrics["loss"] for metrics in metrics_list]
-    accuracy_list = [metrics["accuracy"] for metrics in metrics_list]
-    iou_list = [metrics["iou"] for metrics in metrics_list]
-    loss_arr = jnp.array(loss_list)
-    accuracy_arr = jnp.array(accuracy_list)
-    iou_arr = jnp.array(iou_list)
+    loss_arr = jnp.array([metrics["loss"] for metrics in metrics_list])
+    accuracy_arr = jnp.array([metrics["accuracy"] for metrics in metrics_list])
+    iou_arr = jnp.array([metrics["iou"] for metrics in metrics_list])
     average_metrics = {
         'loss': jnp.mean(loss_arr),
         'accuracy': jnp.mean(accuracy_arr),
@@ -51,9 +48,9 @@ def compute_average_metrics(metrics_list):
     return average_metrics
 
 
-def print_metrics(metrics, epoch, description: str):
-    print(description + ' %d, loss: %.8f, accuracy: %.4f, iou: %.8f' %
-          (epoch, metrics["loss"], metrics["accuracy"], metrics["iou"]))
+def print_metrics(metrics, step, description: str):
+    print(
+        f'{description} {step}, loss: {metrics["loss"]}, accuracy: {metrics["accuracy"]}, iou: {metrics["iou"]}')
 
 
 def compute_loss_function(params, batch, apply_function):
@@ -90,33 +87,28 @@ def eval_step(train_state, batch):
     return {"loss": loss, "accuracy": batch_metrics["accuracy"], "iou": batch_metrics["iou"]}
 
 
+def train_epoch(state, data_generator: UnetTrainDataGenerator):
+    train_metrics: List[Tuple] = []
+    for step, batch in enumerate(data_generator.generator()):
+        state, batch_metrics = train_step(state, batch)
+        local_batch_metrics = jax.device_get(batch_metrics)
+        batch_metrics = {key: local_batch_metrics[key][0]
+                         for key in local_batch_metrics.keys()}
+        train_metrics.append(batch_metrics)
+        print_metrics(batch_metrics, step, "train step")
+    average_metrics = compute_average_metrics(train_metrics)
+    return state, average_metrics
+
+
+def eval_model(state, data_generator: UnetTestDataGenerator):
+    test_metrics: List[Tuple] = []
+    for batch in data_generator.generator():
+        batch_metrics = eval_step(state, batch)
+        batch_metrics = jax.device_get(batch_metrics)
+        test_metrics.append(batch_metrics)
+    average_metrics = compute_average_metrics(test_metrics)
+    return average_metrics
+
+
 class UnetTrainState(train_state.TrainState):
     compute_loss_grad: Callable = flax.struct.field(pytree_node=False)
-    steps_per_epoch: int = flax.struct.field(pytree_node=False)
-    mini_batch_size: int = flax.struct.field(pytree_node=False)
-
-    @staticmethod
-    def train_epoch(state, data_generator: UnetTrainDataGenerator):
-        train_metrics: List[Tuple] = []
-        step_count = 0
-        for _ in range(UnetTrainState.steps_per_epoch):
-            batch = data_generator.get_batch()
-            # print(batch["image"].shape)
-            state, batch_metrics = train_step(state, batch)
-            local_batch_metrics = jax.device_get(batch_metrics)
-            batch_metrics = {key: local_batch_metrics[key][0]
-                             for key in local_batch_metrics.keys()}
-            train_metrics.append(batch_metrics)
-            step_count += 1
-        average_metrics = compute_average_metrics(train_metrics)
-        return state, average_metrics
-
-    @staticmethod
-    def eval_model(state, test_dataset: Dict):
-        test_metrics = []
-        for batch in test_data_batch_generator(test_dataset, UnetTrainState.mini_batch_size):
-            batch_metrics = eval_step(state, batch)
-            batch_metrics = jax.device_get(batch_metrics)
-            test_metrics.append(batch_metrics)
-        average_metrics = compute_average_metrics(test_metrics)
-        return average_metrics
