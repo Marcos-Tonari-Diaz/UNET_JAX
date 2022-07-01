@@ -4,20 +4,21 @@ import jax
 import optax
 import numpy as np
 
+from torch.utils.tensorboard import SummaryWriter
+from flax.jax_utils import replicate
+from jax import profiler
+
 from data_loader import load_dataset, UnetTestDataGenerator, UnetTrainDataGenerator
 from model import UnetJAX
 from unet_training import UnetTrainState, train_epoch, eval_model, print_metrics, get_loss_grad
 from unet_utils import get_date_string
-
-from torch.utils.tensorboard import SummaryWriter
-from flax.jax_utils import replicate
 
 
 def train_unet():
     input_img_size = 512
     learning_rate = 1e-2
     momentum = 0.99
-    num_epochs = 5
+    num_epochs = 1
     mini_batch_size = jax.device_count()
     steps_per_epoch = 1
     train_split_size = 0.5
@@ -76,10 +77,10 @@ def train_unet():
         test_datagen = UnetTestDataGenerator(
             dataset['test'], batch_size=mini_batch_size)
 
-        # summary_writer.add_scalars(f'loss', {"train": float(np.array(train_metrics["loss"])),
-        #                                      "test": float(np.array(test_metrics["loss"]))}, epoch)
-        # summary_writer.add_scalars(f'accuracy', {"train": float(np.array(train_metrics["accuracy"])),
-        #                                          "test": float(np.array(test_metrics["accuracy"]))}, epoch)
+        summary_writer.add_scalars(f'loss', {"train": float(np.array(train_metrics["loss"])),
+                                             "test": float(np.array(test_metrics["loss"]))}, epoch)
+        summary_writer.add_scalars(f'accuracy', {"train": float(np.array(train_metrics["accuracy"])),
+                                                 "test": float(np.array(test_metrics["accuracy"]))}, epoch)
 
         # plot_predictions(dataset, unet, unet_train_state, epoch)
 
@@ -87,4 +88,6 @@ def train_unet():
 
 
 if __name__ == "__main__":
+    profiler.start_trace("profiler_logs")
     train_unet()
+    profiler.stop_trace()

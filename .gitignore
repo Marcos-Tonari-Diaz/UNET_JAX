@@ -12,3 +12,4 @@ jax_experiments/tensorboard_logs/*
 results_logs/
 logs/
 .vscode/
+profiler_logs
