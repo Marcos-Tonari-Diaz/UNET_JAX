@@ -64,27 +64,61 @@ def get_loss_grad():
     return jax.value_and_grad(compute_loss_function, argnums=[0], has_aux=True)
 
 
-@functools.partial(jax.pmap, axis_name='batch')
 def train_step(train_state, batch):
-    (loss, logits), grads = train_state.compute_loss_grad(
-        train_state.params, batch, train_state.apply_fn)
-    grads = jax.lax.pmean(grads[0], axis_name='batch')
+    batch_loss_arr = jnp.array([])
+    batch_logits_arr = jnp.array([])
+    batch_grads_arr = []
+    batch_accuracy_arr = jnp.array([])
+    batch_iou_arr = jnp.array([])
+    for image, mask in zip(batch["image"], batch["mask"]):
+        batch = {"image": image, "mask": mask}
+        (loss, logits), grads = train_state.compute_loss_grad(
+            train_state.params, batch, train_state.apply_fn)
+        print(grads)
+        batch_loss_arr = jnp.append(batch_loss_arr, loss)
+        batch_logits_arr = jnp.append(batch_logits_arr, logits)
+        batch_grads_arr.append(grads)
+    # TODO: jnp.mean cant operate on frozen dicts (grads)
+    grads_flatten_list = [jax.tree_util.tree_flatten(
+        grads) for grads in batch_grads_arr]
+    grads_flatten_arr = jnp.array([grads_flatten[0]
+                                   for grads_flatten in grads_flatten_list])
+    # print(grads_flatten_arr)
+    grads = jnp.mean(grads_flatten_arr, axis=0)
+    grads = jax.tree_util.build_tree(grads, grads_flatten_arr[0][1])
+    # print(grads)
     new_state = train_state.apply_gradients(grads=grads)
-    batch_metrics = compute_metrics(logits, batch['mask'])
-    batch_metrics = jax.lax.pmean(batch_metrics, axis_name='batch')
-    loss = jax.lax.pmean(loss, axis_name='batch')
-    return new_state, {"loss": loss, "accuracy": batch_metrics["accuracy"], "iou": batch_metrics["iou"]}
+    for logits in batch_logits_arr:
+        batch_metrics = compute_metrics(logits, batch['mask'])
+        accuracy = batch_metrics["accuracy"]
+        batch_accuracy_arr = jnp.append(batch_accuracy_arr, accuracy)
+        iou = batch_metrics["iou"]
+        batch_iou_arr = jnp.append(batch_iou_arr, iou)
+    accuracy = jnp.mean(batch_accuracy_arr)
+    iou = jnp.mean(batch_iou_arr)
+    loss = jnp.mean(batch_loss_arr)
+    return new_state, {"loss": loss, "accuracy": accuracy, "iou": iou}
 
 
-@functools.partial(jax.pmap, axis_name='batch')
 def eval_step(train_state, batch):
-    logits = train_state.apply_fn(
-        {'params': train_state.params}, batch['image'])
-    loss = loss_function(logits, batch['mask'])
-    batch_metrics = compute_metrics(logits, batch['mask'])
-    batch_metrics = jax.lax.pmean(batch_metrics, axis_name='batch')
-    loss = jax.lax.pmean(loss, axis_name='batch')
-    return {"loss": loss, "accuracy": batch_metrics["accuracy"], "iou": batch_metrics["iou"]}
+    batch_loss_arr = jnp.array([])
+    batch_accuracy_arr = jnp.array([])
+    batch_iou_arr = jnp.array([])
+    for image, mask in zip(batch["image"], batch["mask"]):
+        batch = {"image": image, "mask": mask}
+        logits = train_state.apply_fn(
+            {'params': train_state.params}, batch)
+        loss = loss_function(logits, batch['mask'])
+        batch_loss_arr = jnp.append(batch_loss_arr, loss)
+        batch_metrics = compute_metrics(logits, batch['mask'])
+        accuracy = batch_metrics["accuracy"]
+        batch_accuracy_arr = jnp.append(batch_accuracy_arr, accuracy)
+        iou = batch_metrics["iou"]
+        batch_iou_arr = jnp.append(batch_iou_arr, iou)
+    accuracy = jnp.mean(batch_accuracy_arr)
+    iou = jnp.mean(batch_iou_arr)
+    loss = jnp.mean(batch_loss_arr)
+    return {"loss": loss, "accuracy": accuracy, "iou": iou}
 
 
 def train_epoch(state, data_generator: UnetTrainDataGenerator):

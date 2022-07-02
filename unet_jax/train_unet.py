@@ -14,12 +14,13 @@ from unet_utils import get_date_string
 from torch.utils.tensorboard import SummaryWriter
 import tensorflow as tf
 
+
 def train_unet():
     input_img_size = 512
     learning_rate = 1e-2
     momentum = 0.99
     num_epochs = 1
-    mini_batch_size = jax.device_count()
+    mini_batch_size = 4
     steps_per_epoch = 1
     train_split_size = 0.5
     rng_seed = 0
@@ -64,15 +65,13 @@ def train_unet():
         compute_loss_grad=get_loss_grad()
     )
 
-    replicated_train_state = replicate(unet_train_state)
-
     for epoch in range(num_epochs):
-        replicated_train_state, train_metrics = train_epoch(
-            replicated_train_state, data_generator=train_datagen)
+        unet_train_state, train_metrics = train_epoch(
+            unet_train_state, data_generator=train_datagen)
         print_metrics(train_metrics, epoch, "train epoch")
 
         test_metrics = eval_model(
-            replicated_train_state, data_generator=test_datagen)
+            unet_train_state, data_generator=test_datagen)
         print_metrics(test_metrics, epoch, "test epoch")
         test_datagen = UnetTestDataGenerator(
             dataset['test'], batch_size=mini_batch_size)
