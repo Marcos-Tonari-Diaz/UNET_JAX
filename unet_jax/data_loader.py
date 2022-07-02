@@ -5,7 +5,7 @@ import glob
 
 from sklearn.model_selection import train_test_split
 from keras.preprocessing.image import ImageDataGenerator
-import tensorflow as tf
+from tensorflow.data import Dataset
 
 
 def scale_pixel_values(array):
@@ -117,9 +117,9 @@ class UnetTestDataGenerator(UnetDataGenerator):
             test_dataset)
 
     def get_test_data_generator(self, test_dataset):
-        images = (tf.data.Dataset.from_tensor_slices(
+        images = (Dataset.from_tensor_slices(
             test_dataset["images"]).batch(self.batch_size))
-        masks = (tf.data.Dataset.from_tensor_slices(
+        masks = (Dataset.from_tensor_slices(
             test_dataset["masks"]).batch(self.batch_size))
         return zip(images, masks)
 

@@ -4,15 +4,15 @@ import jax
 import optax
 import numpy as np
 
-from torch.utils.tensorboard import SummaryWriter
 from flax.jax_utils import replicate
-from jax import profiler
 
 from data_loader import load_dataset, UnetTestDataGenerator, UnetTrainDataGenerator
 from model import UnetJAX
 from unet_training import UnetTrainState, train_epoch, eval_model, print_metrics, get_loss_grad
 from unet_utils import get_date_string
 
+from torch.utils.tensorboard import SummaryWriter
+import tensorflow as tf
 
 def train_unet():
     input_img_size = 512
@@ -88,6 +88,5 @@ def train_unet():
 
 
 if __name__ == "__main__":
-    profiler.start_trace("profiler_logs")
+    tf.config.set_visible_devices([], device_type='GPU')
     train_unet()
-    profiler.stop_trace()
