@@ -1,12 +1,15 @@
 import functools
+from statistics import mean
 from typing import List, Tuple, Callable, Dict
 
 import jax
+from matplotlib.pyplot import axis
 import optax
 import flax
 
 import jax.numpy as jnp
 from flax.training import train_state
+from sklearn.model_selection import GridSearchCV
 
 from data_loader import UnetTestDataGenerator, UnetTrainDataGenerator
 
@@ -48,6 +51,10 @@ def compute_average_metrics(metrics_list):
     return average_metrics
 
 
+def compute_average_batched_metrics(batched_metrics: Dict):
+    return {metric: array.mean() for metric, array in batched_metrics.items()}
+
+
 def print_metrics(metrics, step, description: str):
     print(
         f'{description} {step}, loss: {metrics["loss"]}, accuracy: {metrics["accuracy"]}, iou: {metrics["iou"]}')
@@ -64,38 +71,53 @@ def get_loss_grad():
     return jax.value_and_grad(compute_loss_function, argnums=[0], has_aux=True)
 
 
-@functools.partial(jax.pmap, axis_name='batch')
+def get_vmap_loss_grad():
+    return jax.vmap(get_loss_grad(), in_axes=(None, 0, None))
+
+
+def get_vmap_compute_metrics():
+    return jax.vmap(compute_metrics)
+
+
+def grads_mean(batched_params):
+    return jax.tree_map(
+        lambda leaf: leaf.mean(axis=0),
+        batched_params)[0]
+
+
+def print_params_leaves(batched_params):
+    return jax.tree_map(
+        lambda leaf: print(f'leaf: {leaf.shape} \n {leaf}'), batched_params)
+
+
 def train_step(train_state, batch):
-    (loss, logits), grads = train_state.compute_loss_grad(
+    (loss_arr, logits_arr), grads = train_state.compute_loss_grad(
         train_state.params, batch, train_state.apply_fn)
-    grads = jax.lax.pmean(grads[0], axis_name='batch')
+    grads = grads_mean(grads)
     new_state = train_state.apply_gradients(grads=grads)
-    batch_metrics = compute_metrics(logits, batch['mask'])
-    batch_metrics = jax.lax.pmean(batch_metrics, axis_name='batch')
-    loss = jax.lax.pmean(loss, axis_name='batch')
-    return new_state, {"loss": loss, "accuracy": batch_metrics["accuracy"], "iou": batch_metrics["iou"]}
+    batched_metrics = train_state.vmap_compute_metrics(
+        logits_arr, batch['mask'])
+    batched_metrics["loss"] = loss_arr
+    mini_batch_metrics = compute_average_batched_metrics(batched_metrics)
+    return new_state, mini_batch_metrics
 
 
-@functools.partial(jax.pmap, axis_name='batch')
+@functools.partial(jax.vmap, in_axes=(None, 0))
 def eval_step(train_state, batch):
     logits = train_state.apply_fn(
         {'params': train_state.params}, batch['image'])
     loss = loss_function(logits, batch['mask'])
     batch_metrics = compute_metrics(logits, batch['mask'])
-    batch_metrics = jax.lax.pmean(batch_metrics, axis_name='batch')
-    loss = jax.lax.pmean(loss, axis_name='batch')
     return {"loss": loss, "accuracy": batch_metrics["accuracy"], "iou": batch_metrics["iou"]}
 
 
 def train_epoch(state, data_generator: UnetTrainDataGenerator):
     train_metrics: List[Tuple] = []
-    for step, batch in enumerate(data_generator.generator()):
-        state, batch_metrics = train_step(state, batch)
-        local_batch_metrics = jax.device_get(batch_metrics)
-        batch_metrics = {key: local_batch_metrics[key][0]
-                         for key in local_batch_metrics.keys()}
-        train_metrics.append(batch_metrics)
-        print_metrics(batch_metrics, step, "train step")
+    for step, mini_batch in enumerate(data_generator.generator()):
+        state, mini_batch_metrics = train_step(state, mini_batch)
+        mini_batch_metrics = jax.device_get(mini_batch_metrics)
+        train_metrics.append(mini_batch_metrics)
+        print_metrics(mini_batch_metrics, step, "train step")
     average_metrics = compute_average_metrics(train_metrics)
     return state, average_metrics
 
@@ -112,3 +134,4 @@ def eval_model(state, data_generator: UnetTestDataGenerator):
 
 class UnetTrainState(train_state.TrainState):
     compute_loss_grad: Callable = flax.struct.field(pytree_node=False)
+    vmap_compute_metrics: Callable = flax.struct.field(pytree_node=False)
