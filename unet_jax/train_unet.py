@@ -41,14 +41,14 @@ def train_unet():
     input_img_size = 512
     learning_rate = 1e-2
     momentum = 0.99
-    num_epochs = 10
-    steps_per_epoch = 10
+    num_epochs = 1
+    steps_per_epoch = 1
     mini_batch_size = 1
     train_split_size = 0.5
     rng_seed = 0
     data_generator_seed = 1
 
-    # summary_writer = SummaryWriter("logs/"+get_date_string())
+    summary_writer = SummaryWriter("logs/"+get_date_string())
 
     paths = {"images": "../data/isbi2015/train/image/*.png",
              "masks": "../data/isbi2015/train/label/*.png"}
@@ -76,17 +76,17 @@ def train_unet():
                                                                      data_generator=unet_datagen)
         print_metrics(train_metrics, epoch, "train epoch: ")
 
-    # test_metrics = unet_train_state.eval_model(unet_train_state,
-    #                                                  test_dataset=dataset["test"])
-    # print_metrics(test_metrics, epoch, "test epoch: ")
+        test_metrics = unet_train_state.eval_model(unet_train_state,
+                                                   test_dataset=dataset["test"])
+        print_metrics(test_metrics, epoch, "test epoch: ")
 
-    # summary_writer.add_scalars(f'loss', {"train": float(np.array(train_metrics["loss"])),
-    #                                      "test": float(np.array(test_metrics["loss"]))}, epoch)
-    # summary_writer.add_scalars(f'accuracy', {"train": float(np.array(train_metrics["accuracy"])),
-    #                                          "test": float(np.array(test_metrics["accuracy"]))}, epoch)
-    # plot_predictions(dataset, unet, unet_train_state, epoch)
+        summary_writer.add_scalars(f'loss', {"train": float(np.array(train_metrics["loss"])),
+                                             "test": float(np.array(test_metrics["loss"]))}, epoch)
+        summary_writer.add_scalars(f'accuracy', {"train": float(np.array(train_metrics["accuracy"])),
+                                                 "test": float(np.array(test_metrics["accuracy"]))}, epoch)
+        # plot_predictions(dataset, unet, unet_train_state, epoch)
 
-    # summary_writer.close()
+    summary_writer.close()
 
 
 if __name__ == "__main__":
