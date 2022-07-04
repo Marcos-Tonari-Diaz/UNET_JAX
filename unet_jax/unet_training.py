@@ -90,6 +90,7 @@ def print_params_leaves(batched_params):
         lambda leaf: print(f'leaf: {leaf.shape} \n {leaf}'), batched_params)
 
 
+@jax.jit
 def train_step(train_state, batch):
     (loss_arr, logits_arr), grads = train_state.compute_loss_grad(
         train_state.params, batch, train_state.apply_fn)
@@ -103,6 +104,7 @@ def train_step(train_state, batch):
 
 
 @functools.partial(jax.vmap, in_axes=(None, 0))
+@jax.jit
 def eval_step(train_state, batch):
     logits = train_state.apply_fn(
         {'params': train_state.params}, batch['image'])

@@ -17,7 +17,7 @@ def train_unet():
     input_img_size = 512
     learning_rate = 1e-2
     momentum = 0.99
-    num_epochs = 4
+    num_epochs = 1
     mini_batch_size = 4
     steps_per_epoch = 1
     train_split_size = 0.5
