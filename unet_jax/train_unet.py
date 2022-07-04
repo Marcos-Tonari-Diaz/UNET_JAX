@@ -19,9 +19,9 @@ def train_unet():
     input_img_size = 512
     learning_rate = 1e-2
     momentum = 0.99
-    num_epochs = 1
+    num_epochs = 10
     mini_batch_size = 4
-    steps_per_epoch = 1
+    steps_per_epoch = 100
     train_split_size = 0.5
     rng_seed = 0
     datagen_seed = 1
@@ -29,7 +29,7 @@ def train_unet():
     print(f'mini batch size: {mini_batch_size}')
     print(f'steps per epoch: {steps_per_epoch}')
 
-    summary_writer = SummaryWriter("logs/"+get_date_string())
+    summary_writer = SummaryWriter("logs/jit"+get_date_string())
 
     paths = {"images": "../data/isbi2015/train/image/*.png",
              "masks": "../data/isbi2015/train/label/*.png"}
