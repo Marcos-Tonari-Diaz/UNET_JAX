@@ -48,7 +48,7 @@ def train_unet():
     rng_seed = 0
     data_generator_seed = 1
 
-    summary_writer = SummaryWriter("logs/"+get_date_string())
+    summary_writer = SummaryWriter("logs/jit_batchsize1"+get_date_string())
 
     paths = {"images": "../data/isbi2015/train/image/*.png",
              "masks": "../data/isbi2015/train/label/*.png"}
