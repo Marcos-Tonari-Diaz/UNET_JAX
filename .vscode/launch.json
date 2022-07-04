@@ -5,6 +5,15 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Train Unet",
+            "type": "python",
+            "request": "launch",
+            "program": "train_unet.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "cwd": "${workspaceFolder}/unet_jax"
+        },
+        {
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",
