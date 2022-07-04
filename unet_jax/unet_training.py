@@ -71,6 +71,7 @@ def params_mean(param_list):
         *param_list)[0]
 
 
+@jax.jit
 def train_step(train_state, batch):
     batch_loss_arr = jnp.array([])
     batch_logits_arr = jnp.array([])
@@ -97,6 +98,7 @@ def train_step(train_state, batch):
     return new_state, {"loss": loss, "accuracy": accuracy, "iou": iou}
 
 
+@jax.jit
 def eval_step(train_state, batch):
     batch_loss_arr = jnp.array([])
     batch_accuracy_arr = jnp.array([])
