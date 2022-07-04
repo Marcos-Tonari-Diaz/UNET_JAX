@@ -14,6 +14,7 @@ from unet_utils import get_date_string
 from torch.utils.tensorboard import SummaryWriter
 import tensorflow as tf
 
+
 def train_unet():
     input_img_size = 512
     learning_rate = 1e-2
@@ -28,7 +29,7 @@ def train_unet():
     print(f'mini batch size: {mini_batch_size}')
     print(f'steps per epoch: {steps_per_epoch}')
 
-    summary_writer = SummaryWriter("logs/"+get_date_string())
+    summary_writer = SummaryWriter("logs/pmap"+get_date_string())
 
     paths = {"images": "../data/isbi2015/train/image/*.png",
              "masks": "../data/isbi2015/train/label/*.png"}
