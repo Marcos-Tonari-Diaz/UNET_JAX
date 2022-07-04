@@ -53,10 +53,10 @@ def print_metrics(metrics, step, description: str):
         f'{description} {step}, loss: {metrics["loss"]}, accuracy: {metrics["accuracy"]}, iou: {metrics["iou"]}')
 
 
-def compute_loss_function(params, batch, apply_function):
+def compute_loss_function(params, image, mask, apply_function):
     logits = apply_function(
-        {'params': params}, batch['image'])
-    loss = loss_function(logits, batch['mask'])
+        {'params': params}, image)
+    loss = loss_function(logits, mask)
     return loss, logits
 
 
@@ -72,23 +72,27 @@ def params_mean(param_list):
 
 
 @jax.jit
-def train_step(train_state, batch):
+def train_step(train_state, mini_batch):
     batch_loss_arr = jnp.array([])
-    batch_logits_arr = jnp.array([])
+    batch_logits_list = []
     batch_grads_list = []
     batch_accuracy_arr = jnp.array([])
     batch_iou_arr = jnp.array([])
-    for image, mask in zip(batch["image"], batch["mask"]):
-        batch = {"image": image, "mask": mask}
+    # for image, mask in zip(batch["image"], batch["mask"]):
+    for batch_index in range(len(mini_batch["image"])):
+        image = mini_batch["image"][batch_index]
+        mask = mini_batch["mask"][batch_index]
         (loss, logits), grads = train_state.compute_loss_grad(
-            train_state.params, batch, train_state.apply_fn)
+            train_state.params, image, mask, train_state.apply_fn)
         batch_loss_arr = jnp.append(batch_loss_arr, loss)
-        batch_logits_arr = jnp.append(batch_logits_arr, logits)
+        batch_logits_list.append(logits)
         batch_grads_list.append(grads)
+    batch_logits_arr = jnp.array(batch_logits_list)
     grads = params_mean(batch_grads_list)
     new_state = train_state.apply_gradients(grads=grads)
-    for logits in batch_logits_arr:
-        batch_metrics = compute_metrics(logits, batch['mask'])
+    for logits_index in range(len(batch_logits_arr)):
+        batch_metrics = compute_metrics(
+            batch_logits_arr[logits_index], mini_batch["mask"][logits_index])
         batch_accuracy_arr = jnp.append(
             batch_accuracy_arr, batch_metrics["accuracy"])
         batch_iou_arr = jnp.append(batch_iou_arr, batch_metrics["iou"])
@@ -99,17 +103,17 @@ def train_step(train_state, batch):
 
 
 @jax.jit
-def eval_step(train_state, batch):
+def eval_step(train_state, mini_batch):
     batch_loss_arr = jnp.array([])
     batch_accuracy_arr = jnp.array([])
     batch_iou_arr = jnp.array([])
-    for image, mask in zip(batch["image"], batch["mask"]):
-        batch = {"image": image, "mask": mask}
+    for batch_index in range(len(mini_batch["image"])):
         logits = train_state.apply_fn(
-            {'params': train_state.params}, batch)
-        loss = loss_function(logits, batch['mask'])
+            {'params': train_state.params}, mini_batch["image"][batch_index])
+        loss = loss_function(logits, mini_batch["mask"][batch_index])
         batch_loss_arr = jnp.append(batch_loss_arr, loss)
-        batch_metrics = compute_metrics(logits, batch['mask'])
+        batch_metrics = compute_metrics(
+            logits, mini_batch["mask"][batch_index])
         batch_accuracy_arr = jnp.append(
             batch_accuracy_arr, batch_metrics["accuracy"])
         batch_iou_arr = jnp.append(batch_iou_arr, batch_metrics["iou"])
@@ -122,10 +126,9 @@ def eval_step(train_state, batch):
 def train_epoch(state, data_generator: UnetTrainDataGenerator):
     train_metrics: List[Tuple] = []
     for step, batch in enumerate(data_generator.generator()):
+        print("inside train loop")
         state, batch_metrics = train_step(state, batch)
-        local_batch_metrics = jax.device_get(batch_metrics)
-        batch_metrics = {key: local_batch_metrics[key][0]
-                         for key in local_batch_metrics.keys()}
+        batch_metrics = jax.device_get(batch_metrics)
         train_metrics.append(batch_metrics)
         print_metrics(batch_metrics, step, "train step")
     average_metrics = compute_average_metrics(train_metrics)
