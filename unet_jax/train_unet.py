@@ -47,7 +47,7 @@ def train_unet():
     steps_per_epoch = 1
     train_split_size = 0.5
 
-    summary_writer = SummaryWriter("logs/"+get_date_string())
+    summary_writer = SummaryWriter("logs/jit_batchsize1"+get_date_string())
 
     # dataset
     paths = {"images": "../data/isbi2015/train/image/*.png",
