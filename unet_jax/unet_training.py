@@ -93,7 +93,6 @@ class UnetTrainState():
         self.train_state = train_state.TrainState.create(
             apply_fn=self.unet.apply, params=unet_params, tx=optimizer)
 
-    # @jax.jit
     def train_step(self, batch):
         def compute_loss_function(params):
             logits = self.unet.apply(
@@ -110,7 +109,6 @@ class UnetTrainState():
         batch_iou = compute_accuracy(logits, batch['mask'])
         return {"loss": loss, "accuracy": batch_accuracy, "iou": batch_iou}
 
-    # @jax.jit
     def eval_step(self, batch):
         logits = self.unet.apply(
             {'params': self.train_state.params}, batch['image'])

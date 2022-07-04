@@ -79,7 +79,7 @@ def train_unet():
                                                  "test": float(np.array(test_metrics["accuracy"]))},
                                    unet_train_state.current_epoch)
 
-        plot_predictions(dataset, unet, unet_train_state, epoch)
+        # plot_predictions(dataset, unet, unet_train_state, epoch)
 
     summary_writer.close()
 
