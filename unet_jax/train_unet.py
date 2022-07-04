@@ -27,7 +27,7 @@ def train_unet():
     print(f'mini batch size: {mini_batch_size}')
     print(f'steps per epoch: {steps_per_epoch}')
 
-    summary_writer = SummaryWriter("logs/"+get_date_string())
+    summary_writer = SummaryWriter("logs/vmap_jit"+get_date_string())
 
     paths = {"images": "../data/isbi2015/train/image/*.png",
              "masks": "../data/isbi2015/train/label/*.png"}
