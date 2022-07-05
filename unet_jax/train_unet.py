@@ -10,18 +10,32 @@ from data_loader import load_dataset, UnetTestDataGenerator, UnetTrainDataGenera
 from model import UnetJAX
 from unet_training import UnetTrainState, train_epoch, eval_model, print_metrics, get_loss_grad
 from unet_utils import get_date_string
+import functools
+import time
 
 from torch.utils.tensorboard import SummaryWriter
 import tensorflow as tf
+
+
+def perf_timer(func):
+    @functools.wraps(func)
+    def wrapper_timer(*args, **kwargs):
+        tic = time.perf_counter()
+        value = func(*args, **kwargs)
+        toc = time.perf_counter()
+        elapsed_time = toc - tic
+        print(f"({func.__name__}) Elapsed time: {elapsed_time:2.10f} seconds")
+        return value
+    return wrapper_timer
 
 
 def train_unet():
     input_img_size = 512
     learning_rate = 1e-2
     momentum = 0.99
-    num_epochs = 10
+    num_epochs = 1
     mini_batch_size = jax.device_count()
-    steps_per_epoch = 100
+    steps_per_epoch = 1
     train_split_size = 0.5
     rng_seed = 0
     datagen_seed = 1
@@ -90,4 +104,4 @@ def train_unet():
 
 if __name__ == "__main__":
     tf.config.set_visible_devices([], device_type='GPU')
-    train_unet()
+    perf_timer(train_unet)()

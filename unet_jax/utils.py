@@ -2,6 +2,8 @@ from unet_utils import plot_imgs
 import jax.numpy as jnp
 import numpy as np
 import jax
+import functools
+import time
 
 
 def plot_predictions(dataset, unet, unet_train_state, epoch):
@@ -26,3 +28,15 @@ def plot_predictions(dataset, unet, unet_train_state, epoch):
         nm_img_to_plot=1,
         figsize=10,
         save_path=f"experiment-{get_date_string()}_epoch-{epoch}_prediction.png")
+
+
+def perf_timer(func):
+    @functools.wraps(func)
+    def wrapper_timer(*args, **kwargs):
+        tic = time.perf_counter()
+        value = func(*args, **kwargs)
+        toc = time.perf_counter()
+        elapsed_time = toc - tic
+        print(f"({func.__name__}) Elapsed time: {elapsed_time:2.10f} seconds")
+        return value
+    return wrapper_timer
