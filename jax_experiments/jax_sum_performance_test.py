@@ -52,6 +52,11 @@ def jax_random_sum_jit(array):
     rand_sum = jnp.sum(array)
     return rand_sum
 
+@jax.jit
+def jax_random_sum_jit_device_put(array):
+    array = device_put(array)
+    rand_sum = jnp.sum(array)
+    return rand_sum
 
 def jax_random_sum_batched(array):
     rand_sum = jnp.sum(array, axis=0)
@@ -69,9 +74,21 @@ def jax_random_sum_vmap(array):
     rand_sum = jnp.sum(rand_sum)
     return rand_sum
 
+@jax.jit
+def jax_random_sum_vmap_jit(array):
+    rand_sum = sum_batch(array)
+    rand_sum = jnp.sum(rand_sum)
+    return rand_sum
 
 @functools.partial(jax.pmap, axis_name="batch")
 def jax_random_sum_pmap(array):
+    rand_sum = jnp.sum(array, axis=0)
+    rand_sum = psum(rand_sum, axis_name="batch")
+    return rand_sum
+
+@functools.partial(jax.pmap, axis_name="batch")
+@jax.jit
+def jax_random_sum_pmap_jit(array):
     rand_sum = jnp.sum(array, axis=0)
     rand_sum = psum(rand_sum, axis_name="batch")
     return rand_sum
@@ -97,10 +114,19 @@ if __name__ == "__main__":
     jax_random_sum_jit(dummy)  # discard first run
     print(f'sum: {perf_timer_jax(jax_random_sum_jit)(rand_vec_jax)}')
 
+    jax_random_sum_jit_device_put(dummy)  # discard first run
+    print(f'sum: {perf_timer_jax(jax_random_sum_jit_device_put)(rand_vec_jax)}')
+
     print(f'sum: {perf_timer_jax(jax_random_sum_batched)(batched_arr)}')
 
     jax_random_sum_vmap(dummy)  # discard first run
     print(f'sum: {perf_timer_jax(jax_random_sum_vmap)(batched_arr)}')
 
+    jax_random_sum_vmap_jit(dummy)  # discard first run
+    print(f'sum: {perf_timer_jax(jax_random_sum_vmap_jit)(batched_arr)}')
+
     jax_random_sum_pmap(dummy)  # discard first run
     print(f'sum: {perf_timer_jax(jax_random_sum_pmap)(batched_arr)}')
+
+    jax_random_sum_pmap_jit(dummy)  # discard first run
+    print(f'sum: {perf_timer_jax(jax_random_sum_pmap_jit)(batched_arr)}')
