@@ -54,16 +54,19 @@ def jax_random_sum_jit(array):
     rand_sum = jnp.sum(array)
     return rand_sum
 
+
 @jax.jit
 def jax_random_sum_jit_device_put(array):
     array = device_put(array)
     rand_sum = jnp.sum(array)
     return rand_sum
 
+
 def jax_random_sum_batched(array):
     rand_sum = jnp.sum(array, axis=0)
     rand_sum = jnp.sum(rand_sum)
     return rand_sum
+
 
 def numpy_random_sum_batched(array):
     rand_sum = np.sum(array, axis=0)
@@ -81,17 +84,20 @@ def jax_random_sum_vmap(array):
     rand_sum = jnp.sum(rand_sum)
     return rand_sum
 
+
 @jax.jit
 def jax_random_sum_vmap_jit(array):
     rand_sum = sum_batch(array)
     rand_sum = jnp.sum(rand_sum)
     return rand_sum
 
+
 @functools.partial(jax.pmap, axis_name="batch")
 def jax_random_sum_pmap(array):
     rand_sum = jnp.sum(array, axis=0)
     rand_sum = psum(rand_sum, axis_name="batch")
     return rand_sum
+
 
 @functools.partial(jax.pmap, axis_name="batch")
 @jax.jit
@@ -111,6 +117,18 @@ if __name__ == "__main__":
     rand_vec_jax = random.normal(prng_key, (1, int(arrary_size)))
     batched_arr = jnp.reshape(rand_vec_jax, (4, -1))
     dummy = random.normal(dummy_key, (1, int(arrary_size)))
+
+    # print("pmap jit")
+    # modules = jax_random_sum_pmap_jit.lower(
+    #     rand_vec_jax).compile().compiler_ir()
+    # for hlo_module in modules:
+    #     print(hlo_module.to_string())
+
+    # print("pmap")
+    # modules = jax_random_sum_pmap.lower(
+    #     rand_vec_jax).compile().compiler_ir()
+    # for hlo_module in modules:
+    #     print(hlo_module.to_string())
 
     (f'sum: {perf_timer(numpy_random_sum)(rand_vec_numpy)}')
 
