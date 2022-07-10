@@ -31,6 +31,7 @@ To run, execute `python unet_jax/train_unet.py`
 
 ![batchsize4](docs/batchsize4_comp.png)
 
-### Segmentation Result
+### Segmentation Result 
+### From left to right: original image; target; logits; final prediction
 
 ![seg_result](docs/segm_result.png)
