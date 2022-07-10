@@ -1,12 +1,12 @@
 # UNET JAX
 
-#### Implementation of the UNET convolutional network using JAX, FLAX and OPTAX
+ Implementation of the UNET convolutional network using JAX, FLAX and OPTAX
 
-#### Each branch is a different implementation of the training loop, so that they can be easily compared
+ Each branch is a different implementation of the training loop, so that they can be easily compared
 
-#### Dataset: [isbi2012](https://github.com/alexklibisz/isbi-2012)
+ Dataset: [isbi2012](https://github.com/alexklibisz/isbi-2012)
 
-#### Keras code used for comparison: [keras-unet](https://github.com/karolzak/keras-unet)
+ Keras code used for comparison: [keras-unet](https://github.com/karolzak/keras-unet)
 
 To run, execute `python unet_jax/train_unet.py`
 
