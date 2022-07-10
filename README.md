@@ -4,13 +4,14 @@
 
 #### Each branch is a different implementation of the training loop, so that they can easily be compared
 
-To run, simply run train_unet.py
+To run, simply execute `python train_unet.py`
 
 ### Branches with support for batch size = N (mini-batch)
 
 * unet_jax
 * unet_jax_jit
-* unet_vamp and unet_vmap_jit
+* unet_vamp
+* unet_vmap_jit
 * unet_pmap
 
 ### Branches with support for batch size=1 (SGD)
