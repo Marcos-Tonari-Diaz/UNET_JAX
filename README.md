@@ -4,7 +4,11 @@
 
 #### Each branch is a different implementation of the training loop, so that they can be easily compared
 
-To run, simply execute `python train_unet.py`
+#### Dataset: [isbi2012](https://github.com/alexklibisz/isbi-2012)
+
+#### Keras code used for comparison: [keras-unet](https://github.com/karolzak/keras-unet)
+
+To run, execute `python unet_jax/train_unet.py`
 
 ### Branches with support for batch size = N (mini-batch)
 
@@ -18,8 +22,6 @@ To run, simply execute `python train_unet.py`
 
 * unet_jax_batchsize1
 * unet_jit_batchsize1
-
-#### Keras code used for comparison: [keras-unet](https://github.com/karolzak/keras-unet)
 
 ### SGD performance comparison
 
