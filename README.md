@@ -2,7 +2,7 @@
 
 #### Implementation of the UNET convolutional network using JAX, FLAX and OPTAX
 
-#### Each branch is a different implementation of the training loop, so that they can easily be compared
+#### Each branch is a different implementation of the training loop, so that they can be easily compared
 
 To run, simply execute `python train_unet.py`
 
