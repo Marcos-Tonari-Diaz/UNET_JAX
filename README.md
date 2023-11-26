@@ -23,6 +23,7 @@ To run, execute `python unet_jax/train_unet.py`
 * unet_jax_batchsize1
 * unet_jit_batchsize1
 
+Thesse experiments were made with the Santos Dummond Supercomputer in mid 2022.
 ### SGD performance comparison
 
 ![batchsize1](docs/batchsize1_comp.png)
